@@ -75,12 +75,14 @@ void loop() {
         float jarakA = hitungA * jarakPerPulsa;
         float jarakB = hitungB * jarakPerPulsa;
 
-        if (jarakMobil <= 100.0) {
-            maju(200, 200);
+        if (jarakA <= 260.0) {
+            maju(180, 200);
         } else {
             if (!sudahBerhenti) {
+                kanan();
+                delay(780);
                 stop();
-                Serial.println(">>> TARGET 1 METER TERCAPAI! <<<");
+                Serial.println(">>> TARGET 2 METER TERCAPAI! <<<");
                 sudahBerhenti = true;
             }
         }
@@ -101,13 +103,22 @@ void maju(int pwma, int pwmb) {
     digitalWrite(motorA2, HIGH);
     analogWrite(PWMA, pwma); 
 
-    digitalWrite(motorB1, HIGH);
-    digitalWrite(motorB2, LOW);
+    digitalWrite(motorB2, HIGH);
+    digitalWrite(motorB1, LOW);
     analogWrite(PWMB, pwmb); 
 }
 
+void kanan() {
+    digitalWrite(motorA1, LOW);
+    digitalWrite(motorA2, HIGH);
+    analogWrite(PWMA, 200); 
+
+    digitalWrite(motorB1, HIGH);
+    digitalWrite(motorB2, LOW);
+    analogWrite(PWMB, 100); 
+}
+
 void jarak_mobil(){
-    // Menghindari masalah saat membaca variabel volatile yang bisa berubah tiba-tiba
     long copyHitungA = hitungA;
     long copyHitungB = hitungB;
     
