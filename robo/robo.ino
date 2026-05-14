@@ -15,17 +15,24 @@ int pinEnkoderB = 3;
 
 // Perhitungan jarak per pulsa
 // dengan rumus 3,14*6,5*100/8
-const float jarakPerPulsa = 2.55;
+const float jarakPerPulsa = 2.042;
 
 // base perhitungan pulsa enkoder a dan b
 volatile long hitungA = 0; 
 volatile long hitungB = 0;
-
 volatile long jarakMobil = 0;
 
-// statement agar menghindari terjadinya debounce & kontrol status
+
+volatile unsigned long terakhirA = 0;
+volatile unsigned long terakhirB = 0;
+const int jedaDebounce = 5;
+
+// Kontrol status
 bool sudahBerhenti = false;
-bool sudahMulai = false; // Tambahan: Status apakah mobil sudah boleh jalan
+bool sudahMulai = false; 
+
+// Timer untuk Serial Monitor agar tidak lag
+unsigned long waktuLaluSerial = 0;
 
 void setup() {
     Serial.begin(9600);
@@ -75,12 +82,16 @@ void loop() {
         float jarakA = hitungA * jarakPerPulsa;
         float jarakB = hitungB * jarakPerPulsa;
 
-        if (jarakA <= 260.0) {
+        if (jarakA <= 580.0) {
             maju(180, 200);
         } else {
             if (!sudahBerhenti) {
                 kanan();
-                delay(780);
+                stop();
+                delay(480);
+                stop();
+                maju(180,200);
+                delay(5500);
                 stop();
                 Serial.println(">>> TARGET 2 METER TERCAPAI! <<<");
                 sudahBerhenti = true;
@@ -88,12 +99,16 @@ void loop() {
         }
 
         static unsigned long waktuLalu = 0;
-        if (millis() - waktuLalu >= 50) {
-            waktuLalu = millis();
+        if (millis() - waktuLaluSerial >= 100) {
+            waktuLaluSerial = millis();
+            
+            float jarakA = hitungA * jarakPerPulsa;
+            float jarakB = hitungB * jarakPerPulsa;
 
-            Serial.print("Jarak A: "); Serial.print(jarakA); Serial.print(" cm | ");
-            Serial.print("Jarak B: "); Serial.print(jarakB); Serial.print(" cm |");
-            Serial.print("Jarak Mobil: "); Serial.println(jarakMobil);
+            Serial.print("A: "); Serial.print(hitungA);
+            Serial.print(" | B: "); Serial.print(hitungB);
+            Serial.print(" | Jarak: "); Serial.print(jarakMobil);
+            Serial.println(" cm");
         }
     }
 }
@@ -118,14 +133,6 @@ void kanan() {
     analogWrite(PWMB, 100); 
 }
 
-void jarak_mobil(){
-    long copyHitungA = hitungA;
-    long copyHitungB = hitungB;
-    
-    long hitung = (copyHitungA + copyHitungB) / 2;
-    jarakMobil = hitung * jarakPerPulsa; 
-}
-
 void stop() {
     digitalWrite(motorA1, LOW);
     digitalWrite(motorA2, LOW);
@@ -136,10 +143,29 @@ void stop() {
     analogWrite(PWMB, 0); 
 }
 
+void jarak_mobil(){
+    noInterrupts();
+    long copyA = hitungA;
+    long copyB = hitungB;
+    interrupts();
+    
+    long rataRataPulsa = (copyA + copyB) / 2;
+    jarakMobil = rataRataPulsa * jarakPerPulsa; 
+}
+
+// --- INTERRUPT SERVICE ROUTINE (ISR) DENGAN DEBOUNCE ---
+
 void tambahHitungA() {
-    hitungA++;
+    // Jika waktu sekarang - waktu terakhir lebih dari 5ms, hitung sebagai pulsa sah
+    if (millis() - terakhirA > jedaDebounce) {
+        hitungA++;
+        terakhirA = millis();
+    }
 }
 
 void tambahHitungB() {
-    hitungB++;
+    if (millis() - terakhirB > jedaDebounce) {
+        hitungB++;
+        terakhirB = millis();
+    }
 }
